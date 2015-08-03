@@ -8,11 +8,12 @@ Package overalls takes multi-package go projects, runs test coverage tests on al
 
 Usage and documentation
 ------
+##### Example
+	overalls -project=github.com/bluesuncorp/overalls -covermode=count -debug
+	
+##### then with other tools such as goveralls
+	goveralls -coverprofile=overalls.coverprofile -service semaphore -repotoken $COVERALLS_TOKEN
 
-```go
-//Example 
-overalls -project=github.com/bluesuncorp/overalls" -covermode=count -debug
-```
 $ overalls -help
 
 usage: overalls -project=[path] -covermode[mode] OPTIONS
