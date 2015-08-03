@@ -8,6 +8,11 @@ Package overalls takes multi-package go projects, runs test coverage tests on al
 
 Usage and documentation
 ------
+
+```go
+//Example 
+overalls -project=github.com/bluesuncorp/overalls/test-files", "-covermode=count", "-debug"
+```
 $ overalls -help
 
 usage: overalls -project=[path] -covermode[mode] OPTIONS
