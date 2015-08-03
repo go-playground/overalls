@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 const (
@@ -136,9 +137,34 @@ func main() {
 	testFiles()
 }
 
+func processDIR(wg *sync.WaitGroup, relPath string, out chan<- []byte) {
+
+	defer wg.Done()
+
+	if debugFlag {
+		fmt.Println("Processing: go test -covermode=" + countFlag + " -coverprofile=profile.coverprofile " + relPath)
+	}
+
+	// go test -covermode=count -coverprofile=count.out
+	cmd := exec.Command("go", "test", "-covermode="+countFlag, "-coverprofile=profile.coverprofile", relPath)
+	if err := cmd.Run(); err != nil {
+		fmt.Println("ERROR:", err)
+		os.Exit(1)
+	}
+
+	b, err := ioutil.ReadFile(relPath + "/profile.coverprofile")
+	if err != nil {
+		fmt.Println("ERROR:", err)
+		os.Exit(1)
+	}
+
+	out <- b
+}
+
 func testFiles() {
 
-	buff := bytes.NewBufferString("")
+	out := make(chan []byte)
+	wg := &sync.WaitGroup{}
 
 	walker := func(path string, info os.FileInfo, err error) error {
 
@@ -168,26 +194,8 @@ func testFiles() {
 			return nil
 		}
 
-		if debugFlag {
-			fmt.Println("Processing: go test -covermode=" + countFlag + " -coverprofile=profile.coverprofile " + rel)
-		}
-
-		// go test -covermode=count -coverprofile=count.out
-		cmd := exec.Command("go", "test", "-covermode="+countFlag, "-coverprofile=profile.coverprofile", rel)
-		if err := cmd.Run(); err != nil {
-			fmt.Println("ERROR:", err)
-			os.Exit(1)
-		}
-
-		b, err := ioutil.ReadFile(rel + "/profile.coverprofile")
-		if err != nil {
-			fmt.Println("ERROR:", err)
-			os.Exit(1)
-		}
-
-		results := string(b)
-
-		buff.WriteString(results)
+		wg.Add(1)
+		go processDIR(wg, rel, out)
 
 		return nil
 	}
@@ -195,6 +203,17 @@ func testFiles() {
 	if err := filepath.Walk(projectPath, walker); err != nil {
 		fmt.Printf("\n**could not walk project path '%s'\n%s\n", projectPath, err)
 		os.Exit(1)
+	}
+
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+
+	buff := bytes.NewBufferString("")
+
+	for cover := range out {
+		buff.Write(cover)
 	}
 
 	final := buff.String()
