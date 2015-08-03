@@ -29,5 +29,5 @@ func TestOveralls(t *testing.T) {
 
 	fileBytes, err := ioutil.ReadFile(srcPath + "github.com/bluesuncorp/overalls/test-files/overalls.coverprofile")
 	Equal(t, err, nil)
-	Equal(t, len(fileBytes), 151)
+	Equal(t, len(fileBytes), 133)
 }
