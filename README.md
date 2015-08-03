@@ -1,7 +1,7 @@
 Package overalls
 ================
 
-[![Build Status](https://semaphoreci.com/api/v1/projects/a0634385-0174-48b1-9190-fb2645fdb9a2/501046/badge.svg)](https://semaphoreci.com/joeybloggs/overalls)
+[![Build Status](https://semaphoreci.com/api/v1/projects/a0634385-0174-48b1-9190-fb2645fdb9a2/501047/badge.svg)](https://semaphoreci.com/joeybloggs/overalls)
 [![GoDoc](https://godoc.org/github.com/bluesuncorp/overalls?status.svg)](https://godoc.org/github.com/bluesuncorp/overalls)
 
 Package overalls takes multi-package go projects, runs test coverage tests on all packages in each directory and finally concatenates into a single file for tools like goveralls.
