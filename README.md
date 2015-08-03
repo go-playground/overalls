@@ -1,5 +1,7 @@
-# overalls
-Multi Package go project coverage test concatenation for tools like goveralls
+Package overalls
+================
+
+Package overalls takes multi-package go projects, runs test coverage tests on all packages in each directory and finally concatenates into a single file for tools like goveralls.
 
 
 # In Development
