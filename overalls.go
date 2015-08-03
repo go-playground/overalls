@@ -51,7 +51,7 @@ const (
 )
 
 var (
-	modeRegex   = regexp.MustCompile("^mode: [a-z]+\n")
+	modeRegex   = regexp.MustCompile("mode: [a-z]+\n")
 	gopath      = filepath.Clean(os.Getenv("GOPATH"))
 	srcPath     = gopath + "/src/"
 	projectPath string
@@ -91,6 +91,7 @@ func parseFlags() {
 		os.Exit(1)
 	}
 
+	fmt.Println("|", projectFlag)
 	projectFlag = filepath.Clean(projectFlag)
 
 	if debugFlag {
@@ -143,15 +144,15 @@ func main() {
 	testFiles()
 }
 
-func processDIR(wg *sync.WaitGroup, relPath string, out chan<- []byte) {
+func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte) {
 
 	defer wg.Done()
 
 	if debugFlag {
-		fmt.Println("Processing: go test -covermode=" + coverFlag + " -coverprofile=profile.coverprofile " + relPath)
+		fmt.Println("Processing: go test -covermode=" + coverFlag + " -coverprofile=profile.coverprofile -outputdir=" + fullPath + "/ " + relPath)
 	}
 
-	cmd := exec.Command("go", "test", "-covermode="+coverFlag, "-coverprofile=profile.coverprofile", relPath)
+	cmd := exec.Command("go", "test", "-covermode="+coverFlag, "-coverprofile=profile.coverprofile", "-outputdir="+fullPath+"/", relPath)
 	if err := cmd.Run(); err != nil {
 		fmt.Println("ERROR:", err)
 		os.Exit(1)
@@ -200,7 +201,7 @@ func testFiles() {
 		}
 
 		wg.Add(1)
-		go processDIR(wg, rel, out)
+		go processDIR(wg, path, rel, out)
 
 		return nil
 	}
@@ -222,11 +223,7 @@ func testFiles() {
 	}
 
 	final := buff.String()
-
-	if modeRegex.Match(buff.Bytes()) {
-		final = modeRegex.ReplaceAllString(final, "")
-	}
-
+	final = modeRegex.ReplaceAllString(final, "")
 	final = "mode: " + coverFlag + "\n" + final
 
 	if err := ioutil.WriteFile(outFilename, []byte(final), 0644); err != nil {

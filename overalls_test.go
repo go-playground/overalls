@@ -1,6 +1,8 @@
-package overalls
+package main
 
 import (
+	"io/ioutil"
+	"os/exec"
 	"testing"
 
 	. "gopkg.in/bluesuncorp/assert.v1"
@@ -17,8 +19,15 @@ import (
 // go test -coverprofile cover.out && go tool cover -html=cover.out -o cover.html
 //
 
-func TestGood(t *testing.T) {
+func TestOveralls(t *testing.T) {
 
-	err := TestFiles()
+	args := []string{"-project=github.com/joeybloggs/overalls/test-files", "-covermode=count", "-debug"}
+
+	cmd := exec.Command("overalls", args...)
+	err := cmd.Run()
 	Equal(t, err, nil)
+
+	fileBytes, err := ioutil.ReadFile(srcPath + "github.com/joeybloggs/overalls/test-files/overalls.coverprofile")
+	Equal(t, err, nil)
+	Equal(t, len(fileBytes), 149)
 }
