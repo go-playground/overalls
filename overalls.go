@@ -1,16 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
 const (
 	helpString = `
-usage: overalls -project=[path] OPTIONS
+usage: overalls -project=[path] -covermode[mode] OPTIONS
 
 overalls recursively traverses your projects directory structure
 running 'go test -covermode=count -coverprofile=profile.coverprofile'
@@ -24,10 +28,14 @@ OPTIONS
 	Your project path relative to the '$GOPATH/src' directory
 	example: -project=github.com/bluesuncorp/overalls
 
+  -covermode
+    Mode to run when testing files.
+    default:count
+
 OPTIONAL
 
   -ignore
-    A comma separated list of directory names to ignore.
+    A comma separated list of directory names to ignore, relative to project path.
     example: -ignore=[.git,.hiddentdir...]
     default: '.git'
 
@@ -43,11 +51,13 @@ const (
 )
 
 var (
+	modeRegex   = regexp.MustCompile("^mode: [a-z]+\n")
 	gopath      = filepath.Clean(os.Getenv("GOPATH"))
 	srcPath     = gopath + "/src/"
 	projectPath string
 	ignoreFlag  string
 	projectFlag string
+	countFlag   string
 	helpFlag    bool
 	debugFlag   bool
 	emptyStruct struct{}
@@ -61,6 +71,7 @@ func help() {
 func parseFlags() {
 
 	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
+	flag.StringVar(&countFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
 	flag.BoolVar(&debugFlag, "debug", false, "-debug [true|false]")
 	flag.BoolVar(&helpFlag, "help", false, "-help")
@@ -105,7 +116,7 @@ func main() {
 	var err error
 	var wd string
 
-	projectPath = srcPath + projectFlag
+	projectPath = srcPath + projectFlag + "/"
 
 	if err = os.Chdir(projectPath); err != nil {
 		fmt.Printf("\n**invalid project path '%s'\n%s\n", projectFlag, err)
@@ -126,19 +137,57 @@ func main() {
 }
 
 func testFiles() {
+
+	buff := bytes.NewBufferString("")
+
 	walker := func(path string, info os.FileInfo, err error) error {
 
 		if !info.IsDir() {
 			return nil
 		}
 
-		if _, ignore := ignores[info.Name()]; ignore {
+		rel := strings.Replace(path, projectPath, "", 1)
+
+		if _, ignore := ignores[rel]; ignore {
 			return filepath.SkipDir
 		}
 
-		if debugFlag {
-			fmt.Println("PROCESSING PATH:", path)
+		rel = "./" + rel
+
+		if files, err := filepath.Glob(rel + "/*_test.go"); len(files) == 0 || err != nil {
+
+			if err != nil {
+				fmt.Println("Error checking for test files")
+				os.Exit(1)
+			}
+
+			if debugFlag {
+				fmt.Println("No Go Test files in DIR:", rel, "skipping")
+			}
+
+			return nil
 		}
+
+		if debugFlag {
+			fmt.Println("Processing: go test -covermode=" + countFlag + " -coverprofile=profile.coverprofile " + rel)
+		}
+
+		// go test -covermode=count -coverprofile=count.out
+		cmd := exec.Command("go", "test", "-covermode="+countFlag, "-coverprofile=profile.coverprofile", rel)
+		if err := cmd.Run(); err != nil {
+			fmt.Println("ERROR:", err)
+			os.Exit(1)
+		}
+
+		b, err := ioutil.ReadFile(rel + "/profile.coverprofile")
+		if err != nil {
+			fmt.Println("ERROR:", err)
+			os.Exit(1)
+		}
+
+		results := string(b)
+
+		buff.WriteString(results)
 
 		return nil
 	}
@@ -147,4 +196,12 @@ func testFiles() {
 		fmt.Printf("\n**could not walk project path '%s'\n%s\n", projectPath, err)
 		os.Exit(1)
 	}
+
+	final := buff.String()
+
+	if modeRegex.Match(buff.Bytes()) {
+		final = modeRegex.ReplaceAllString(final, "")
+	}
+
+	fmt.Println("mode: " + countFlag + "\n" + final)
 }
