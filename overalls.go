@@ -57,7 +57,7 @@ var (
 	projectPath string
 	ignoreFlag  string
 	projectFlag string
-	countFlag   string
+	coverFlag   string
 	helpFlag    bool
 	debugFlag   bool
 	emptyStruct struct{}
@@ -71,7 +71,7 @@ func help() {
 func parseFlags() {
 
 	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
-	flag.StringVar(&countFlag, "covermode", "count", "Mode to run when testing files")
+	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
 	flag.BoolVar(&debugFlag, "debug", false, "-debug [true|false]")
 	flag.BoolVar(&helpFlag, "help", false, "-help")
@@ -100,6 +100,13 @@ func parseFlags() {
 	if len(projectFlag) == 0 || projectFlag == "." {
 		fmt.Printf("\n**invalid project path '%s'\n", projectFlag)
 		help()
+		os.Exit(1)
+	}
+
+	switch coverFlag {
+	case "set", "count", "atomic":
+	default:
+		fmt.Printf("\n**invalid covermode '%s'\n", coverFlag)
 		os.Exit(1)
 	}
 
@@ -141,11 +148,10 @@ func processDIR(wg *sync.WaitGroup, relPath string, out chan<- []byte) {
 	defer wg.Done()
 
 	if debugFlag {
-		fmt.Println("Processing: go test -covermode=" + countFlag + " -coverprofile=profile.coverprofile " + relPath)
+		fmt.Println("Processing: go test -covermode=" + coverFlag + " -coverprofile=profile.coverprofile " + relPath)
 	}
 
-	// go test -covermode=count -coverprofile=count.out
-	cmd := exec.Command("go", "test", "-covermode="+countFlag, "-coverprofile=profile.coverprofile", relPath)
+	cmd := exec.Command("go", "test", "-covermode="+coverFlag, "-coverprofile=profile.coverprofile", relPath)
 	if err := cmd.Run(); err != nil {
 		fmt.Println("ERROR:", err)
 		os.Exit(1)
@@ -221,7 +227,7 @@ func testFiles() {
 		final = modeRegex.ReplaceAllString(final, "")
 	}
 
-	final = "mode: " + countFlag + "\n" + final
+	final = "mode: " + coverFlag + "\n" + final
 
 	if err := ioutil.WriteFile(outFilename, []byte(final), 0644); err != nil {
 		fmt.Println("ERROR Writing \""+outFilename+"\"", err)
