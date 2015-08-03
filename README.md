@@ -38,7 +38,7 @@ OPTIONAL
     example: -debug
     default:false
     
-    How to Contribute
+How to Contribute
 ------
 
 There will always be a development branch for each version i.e. `v1-development`. In order to contribute, 
