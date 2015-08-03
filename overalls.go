@@ -20,9 +20,7 @@ usage: overalls -project=[path] -covermode[mode] OPTIONS
 overalls recursively traverses your projects directory structure
 running 'go test -covermode=count -coverprofile=profile.coverprofile'
 in each directory with go test files, concatenates them into one
-coverprofile in your root directory named 'overalls.coverprofile' and
-then submits you results to coveralls using the goveralls package
-https://github.com/mattn/goveralls
+coverprofile in your root directory named 'overalls.coverprofile'
 
 OPTIONS
   -project
@@ -40,7 +38,7 @@ OPTIONAL
     example: -ignore=[.git,.hiddentdir...]
     default: '.git'
 
-  -debug=[true|false]
+  -debug
     A flag indicating whether to print debug messages.
     example: -debug
     default:false
@@ -49,6 +47,7 @@ OPTIONAL
 
 const (
 	defaultIgnores = ".git"
+	outFilename    = "overalls.coverprofile"
 )
 
 var (
@@ -222,5 +221,10 @@ func testFiles() {
 		final = modeRegex.ReplaceAllString(final, "")
 	}
 
-	fmt.Println("mode: " + countFlag + "\n" + final)
+	final = "mode: " + countFlag + "\n" + final
+
+	if err := ioutil.WriteFile(outFilename, []byte(final), 0644); err != nil {
+		fmt.Println("ERROR Writing \""+outFilename+"\"", err)
+		os.Exit(1)
+	}
 }
