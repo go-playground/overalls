@@ -3,6 +3,7 @@ package main
 import (
 	"io/ioutil"
 	"os/exec"
+	"strings"
 	"testing"
 
 	. "gopkg.in/bluesuncorp/assert.v1"
@@ -29,5 +30,9 @@ func TestOveralls(t *testing.T) {
 
 	fileBytes, err := ioutil.ReadFile(srcPath + "github.com/bluesuncorp/overalls/test-files/overalls.coverprofile")
 	Equal(t, err, nil)
-	Equal(t, len(fileBytes), 133)
+
+	final := string(fileBytes)
+	NotEqual(t, strings.Index(final, "main.go"), -1)
+	NotEqual(t, strings.Index(final, "test-files/good/main.go"), -1)
+	NotEqual(t, strings.Index(final, "test-files/good2/main.go"), -1)
 }
