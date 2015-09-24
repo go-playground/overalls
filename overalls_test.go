@@ -28,7 +28,7 @@ func TestOveralls(t *testing.T) {
 	err := cmd.Run()
 	Equal(t, err, nil)
 
-	fileBytes, err := ioutil.ReadFile(srcPath + "github.com/bluesuncorp/overalls/test-files/overalls.coverprofile")
+	fileBytes, err := ioutil.ReadFile(srcPath + "github.com/go-playground/overalls/test-files/overalls.coverprofile")
 	Equal(t, err, nil)
 
 	final := string(fileBytes)
