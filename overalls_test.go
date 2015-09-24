@@ -22,7 +22,7 @@ import (
 
 func TestOveralls(t *testing.T) {
 
-	args := []string{"-project=github.com/bluesuncorp/overalls/test-files", "-covermode=count", "-debug"}
+	args := []string{"-project=github.com/go-playground/overalls/test-files", "-covermode=count", "-debug"}
 
 	cmd := exec.Command("overalls", args...)
 	err := cmd.Run()
