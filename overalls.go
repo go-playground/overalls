@@ -36,7 +36,7 @@ OPTIONAL
   -ignore
     A comma separated list of directory names to ignore, relative to project path.
     example: -ignore=[.git,.hiddentdir...]
-    default: '.git'
+    default: '.git,vendor'
 
   -debug
     A flag indicating whether to print debug messages.
@@ -46,7 +46,7 @@ OPTIONAL
 )
 
 const (
-	defaultIgnores = ".git"
+	defaultIgnores = ".git,vendor"
 	outFilename    = "overalls.coverprofile"
 )
 
