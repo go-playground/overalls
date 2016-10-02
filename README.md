@@ -10,13 +10,13 @@ Usage and documentation
 ------
 ##### Example
 	overalls -project=github.com/bluesuncorp/overalls -covermode=count -debug
-	
+
 ##### then with other tools such as goveralls
 	goveralls -coverprofile=overalls.coverprofile -service semaphore -repotoken $COVERALLS_TOKEN
 
 $ overalls -help
 
-usage: overalls -project=[path] -covermode[mode] OPTIONS
+usage: overalls -project=[path] -covermode[mode] OPTIONS -- TESTOPTIONS
 
 overalls recursively traverses your projects directory structure
 running 'go test -covermode=count -coverprofile=profile.coverprofile'
@@ -43,11 +43,23 @@ OPTIONAL
     A flag indicating whether to print debug messages.
     example: -debug
     default:false
-    
+
+TESTOPTIONS
+
+  Any flags after `--` will be passed as-is to `go test`.
+  For example:
+
+```bash
+overalls -project=$PROJECT -debug -- -race -v
+```
+
+Will call `go test -race -v` under the hood in addition to the `-coverprofile`
+commands.
+
 How to Contribute
 ------
 
-There will always be a development branch. In order to contribute, 
+There will always be a development branch. In order to contribute,
 please make your pull requests against that branch.
 
 If the changes being proposed or requested are breaking changes, please create an issue.
