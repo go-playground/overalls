@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -23,7 +22,7 @@ import (
 // go test -coverprofile cover.out && go tool cover -html=cover.out -o cover.html
 //
 
-func TestOveralls(t *testing.T) {
+func TestOveralls_Default(t *testing.T) {
 	withTestingOveralls(t, func(output []byte, fileBytes []byte) {
 		final := string(fileBytes)
 		NotEqual(t, strings.Index(final, "main.go"), -1)
@@ -31,16 +30,18 @@ func TestOveralls(t *testing.T) {
 		NotEqual(t, strings.Index(final, "test-files/good2/main.go"), -1)
 		MatchRegex(t, string(output), "-covermode=count")
 		MatchRegex(t, string(output), "-outputdir=.*/go-playground/overalls/test-files/good")
+
+		MatchRegex(t, string(output), "go test -covermode=count")
 	})
 }
 
-func TestOveralls_WithExtrArguments(t *testing.T) {
+func TestOveralls_WithExtraArguments(t *testing.T) {
 	withTestingOveralls(t, func(output []byte, fileBytes []byte) {
-		final := string(fileBytes)
-		NotEqual(t, strings.Index(final, "main.go"), -1)
+		MatchRegex(t, string(output), "Processing: go test")
 
-		fmt.Println(string(output))
-	}, "-v")
+		MatchRegex(t, string(output), "=== RUN")
+		MatchRegex(t, string(output), "--- PASS: TestGood")
+	}, "--", "-v")
 }
 
 func withTestingOveralls(t *testing.T, fn func(output []byte, coverage []byte), args ...string) {

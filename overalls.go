@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"flag"
 	"fmt"
@@ -70,12 +71,15 @@ func help() {
 	fmt.Printf(helpString)
 }
 
-func parseFlags() {
+func init() {
 	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
 	flag.BoolVar(&debugFlag, "debug", false, "-debug [true|false]")
 	flag.BoolVar(&helpFlag, "help", false, "-help")
+}
+
+func parseFlags() {
 	flag.Parse()
 
 	if helpFlag {
@@ -156,15 +160,26 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	args := []string{"test"}
 	args = append(args, flag.Args()...)
 	args = append(args, "-covermode="+coverFlag, "-coverprofile="+pkgFilename, "-outputdir="+fullPath+"/", relPath)
+	fmt.Printf("Test args: %+v\n", args)
 
 	cmd := exec.Command("go", args...)
 	if debugFlag {
-		logger.Println("Processing: go", strings.Join(cmd.Args, " "))
+		logger.Println("Processing:", strings.Join(cmd.Args, " "))
 	}
-
-	output, err := cmd.CombinedOutput()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		logger.Println("ERROR:", err.Error(), string(output))
+		logger.Fatal("Unable to get process stdout")
+	}
+	go func() {
+		bs := bufio.NewScanner(stdout)
+		defer stdout.Close()
+		for bs.Scan() {
+			logger.Print(bs.Text())
+		}
+	}()
+
+	if err := cmd.Run(); err != nil {
+		logger.Fatal("ERROR:", err)
 		os.Exit(1)
 	}
 
