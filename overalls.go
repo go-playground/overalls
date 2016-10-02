@@ -48,6 +48,7 @@ OPTIONAL
 const (
 	defaultIgnores = ".git,vendor"
 	outFilename    = "overalls.coverprofile"
+	pkgFilename    = "profile.coverprofile"
 )
 
 var (
@@ -148,11 +149,15 @@ func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte)
 
 	defer wg.Done()
 
+	args := []string{"test"}
+	args = append(args, flag.Args()...)
+	args = append(args, "-covermode="+coverFlag, "-coverprofile="+pkgFilename, "-outputdir="+fullPath+"/", relPath)
+
+	cmd := exec.Command("go", args...)
 	if debugFlag {
-		fmt.Println("Processing: go test -covermode=" + coverFlag + " -coverprofile=profile.coverprofile -outputdir=" + fullPath + "/ " + relPath)
+		fmt.Println("Processing: go", strings.Join(cmd.Args, " "))
 	}
 
-	cmd := exec.Command("go", "test", "-covermode="+coverFlag, "-coverprofile=profile.coverprofile", "-outputdir="+fullPath+"/", relPath)
 	if err := cmd.Run(); err != nil {
 		fmt.Println("ERROR:", err)
 		os.Exit(1)
