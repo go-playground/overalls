@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -147,14 +148,24 @@ func runMain(logger *log.Logger) {
 			fmt.Println(err)
 		}
 
-		logger.Printf("Working DIR:", wd)
+		logger.Println("Working DIR:", wd)
 	}
 
 	testFiles(logger)
 }
 
-func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte) {
+func scanOutput(r io.ReadCloser, fn func(...interface{})) {
+	defer r.Close()
+	bs := bufio.NewScanner(r)
+	for bs.Scan() {
+		fn(bs.Text())
+	}
+	if err := bs.Err(); err != nil {
+		fn(fmt.Sprintf("Scan error: %v", err.Error()))
+	}
+}
 
+func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte) {
 	defer wg.Done()
 
 	// 1 for "test", 4 for coermode, coverprofile, outputdir, relpath
@@ -172,23 +183,21 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	if err != nil {
 		logger.Fatal("Unable to get process stdout")
 	}
-	go func() {
-		bs := bufio.NewScanner(stdout)
-		defer stdout.Close()
-		for bs.Scan() {
-			logger.Print(bs.Text())
-		}
-	}()
+	go scanOutput(stdout, logger.Print)
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		logger.Fatal("Unable to get process stderr")
+	}
+	go scanOutput(stderr, logger.Print)
 
 	if err := cmd.Run(); err != nil {
 		logger.Fatal("ERROR:", err)
-		os.Exit(1)
 	}
 
 	b, err := ioutil.ReadFile(relPath + "/profile.coverprofile")
 	if err != nil {
-		logger.Println("ERROR:", err)
-		os.Exit(1)
+		logger.Fatal("ERROR:", err)
 	}
 
 	out <- b
