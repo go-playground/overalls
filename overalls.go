@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -70,7 +71,6 @@ func help() {
 }
 
 func parseFlags() {
-
 	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
@@ -119,7 +119,11 @@ func parseFlags() {
 }
 
 func main() {
+	logger := log.New(os.Stdout, "", log.LstdFlags)
+	runMain(logger)
+}
 
+func runMain(logger *log.Logger) {
 	parseFlags()
 
 	var err error
@@ -128,7 +132,7 @@ func main() {
 	projectPath = srcPath + projectFlag + "/"
 
 	if err = os.Chdir(projectPath); err != nil {
-		fmt.Printf("\n**invalid project path '%s'\n%s\n", projectFlag, err)
+		logger.Printf("\n**invalid project path '%s'\n%s\n", projectFlag, err)
 		help()
 		os.Exit(1)
 	}
@@ -139,13 +143,13 @@ func main() {
 			fmt.Println(err)
 		}
 
-		fmt.Println("Working DIR:", wd)
+		logger.Printf("Working DIR:", wd)
 	}
 
-	testFiles()
+	testFiles(logger)
 }
 
-func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte) {
+func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte) {
 
 	defer wg.Done()
 
@@ -155,26 +159,25 @@ func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte)
 
 	cmd := exec.Command("go", args...)
 	if debugFlag {
-		fmt.Println("Processing: go", strings.Join(cmd.Args, " "))
+		logger.Println("Processing: go", strings.Join(cmd.Args, " "))
 	}
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println("ERROR:", err.Error(), string(output))
+		logger.Println("ERROR:", err.Error(), string(output))
 		os.Exit(1)
 	}
 
 	b, err := ioutil.ReadFile(relPath + "/profile.coverprofile")
 	if err != nil {
-		fmt.Println("ERROR:", err)
+		logger.Println("ERROR:", err)
 		os.Exit(1)
 	}
 
 	out <- b
 }
 
-func testFiles() {
-
+func testFiles(logger *log.Logger) {
 	out := make(chan []byte)
 	wg := &sync.WaitGroup{}
 
@@ -195,26 +198,25 @@ func testFiles() {
 		if files, err := filepath.Glob(rel + "/*_test.go"); len(files) == 0 || err != nil {
 
 			if err != nil {
-				fmt.Println("Error checking for test files")
+				logger.Printf("Error checking for test files")
 				os.Exit(1)
 			}
 
 			if debugFlag {
-				fmt.Println("No Go Test files in DIR:", rel, "skipping")
+				logger.Printf("No Go Test files in DIR:", rel, "skipping")
 			}
 
 			return nil
 		}
 
 		wg.Add(1)
-		go processDIR(wg, path, rel, out)
+		go processDIR(logger, wg, path, rel, out)
 
 		return nil
 	}
 
 	if err := filepath.Walk(projectPath, walker); err != nil {
-		fmt.Printf("\n**could not walk project path '%s'\n%s\n", projectPath, err)
-		os.Exit(1)
+		logger.Fatalf("\n**could not walk project path '%s'\n%s\n", projectPath, err)
 	}
 
 	go func() {
@@ -233,7 +235,6 @@ func testFiles() {
 	final = "mode: " + coverFlag + "\n" + final
 
 	if err := ioutil.WriteFile(outFilename, []byte(final), 0644); err != nil {
-		fmt.Println("ERROR Writing \""+outFilename+"\"", err)
-		os.Exit(1)
+		logger.Fatal("ERROR Writing \""+outFilename+"\"", err)
 	}
 }
