@@ -158,8 +158,9 @@ func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte)
 		fmt.Println("Processing: go", strings.Join(cmd.Args, " "))
 	}
 
-	if err := cmd.Run(); err != nil {
-		fmt.Println("ERROR:", err)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Println("ERROR:", err.Error(), string(output))
 		os.Exit(1)
 	}
 
