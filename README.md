@@ -43,6 +43,11 @@ OPTIONAL
     A flag indicating whether to print debug messages.
     example: -debug
     default:false
+
+  -concurrency
+    Limit the number of packages being processed at one time.
+    example: -concurrency=5
+    default: 1000
     
 How to Contribute
 ------

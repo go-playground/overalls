@@ -42,6 +42,11 @@ OPTIONAL
     A flag indicating whether to print debug messages.
     example: -debug
     default:false
+
+  -concurrency
+    Limit the number of packages being processed at one time.
+    example: -concurrency=5
+    default: 1000
 `
 )
 
@@ -51,17 +56,18 @@ const (
 )
 
 var (
-	modeRegex   = regexp.MustCompile("mode: [a-z]+\n")
-	gopath      = filepath.Clean(os.Getenv("GOPATH"))
-	srcPath     = gopath + "/src/"
-	projectPath string
-	ignoreFlag  string
-	projectFlag string
-	coverFlag   string
-	helpFlag    bool
-	debugFlag   bool
-	emptyStruct struct{}
-	ignores     = map[string]struct{}{}
+	modeRegex       = regexp.MustCompile("mode: [a-z]+\n")
+	gopath          = filepath.Clean(os.Getenv("GOPATH"))
+	srcPath         = gopath + "/src/"
+	projectPath     string
+	ignoreFlag      string
+	projectFlag     string
+	coverFlag       string
+	helpFlag        bool
+	debugFlag       bool
+	concurrencyFlag int
+	emptyStruct     struct{}
+	ignores         = map[string]struct{}{}
 )
 
 func help() {
@@ -74,6 +80,7 @@ func parseFlags() {
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
 	flag.BoolVar(&debugFlag, "debug", false, "-debug [true|false]")
+	flag.IntVar(&concurrencyFlag, "concurrency", 1000, "-concurrency [int]: number of packages to process concurrently")
 	flag.BoolVar(&helpFlag, "help", false, "-help")
 	flag.Parse()
 
@@ -144,7 +151,7 @@ func main() {
 	testFiles()
 }
 
-func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte) {
+func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte, semaphore chan bool) {
 
 	defer wg.Done()
 
@@ -165,10 +172,12 @@ func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte)
 	}
 
 	out <- b
+	<-semaphore
 }
 
 func testFiles() {
 
+	semaphore := make(chan bool, concurrencyFlag)
 	out := make(chan []byte)
 	wg := &sync.WaitGroup{}
 
@@ -200,27 +209,29 @@ func testFiles() {
 			return nil
 		}
 
+		semaphore <- true
 		wg.Add(1)
-		go processDIR(wg, path, rel, out)
+		go processDIR(wg, path, rel, out, semaphore)
 
 		return nil
 	}
+
+	buff := bytes.NewBufferString("")
+
+	go func() {
+		for cover := range out {
+			buff.Write(cover)
+		}
+	}()
 
 	if err := filepath.Walk(projectPath, walker); err != nil {
 		fmt.Printf("\n**could not walk project path '%s'\n%s\n", projectPath, err)
 		os.Exit(1)
 	}
 
-	go func() {
-		wg.Wait()
-		close(out)
-	}()
-
-	buff := bytes.NewBufferString("")
-
-	for cover := range out {
-		buff.Write(cover)
-	}
+	wg.Wait()
+	close(out)
+	close(semaphore)
 
 	final := buff.String()
 	final = modeRegex.ReplaceAllString(final, "")
