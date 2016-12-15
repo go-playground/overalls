@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	. "gopkg.in/bluesuncorp/assert.v1"
+	. "gopkg.in/go-playground/assert.v1"
 )
 
 // NOTES:
@@ -22,13 +22,13 @@ import (
 
 func TestOveralls(t *testing.T) {
 
-	args := []string{"-project=github.com/bluesuncorp/overalls/test-files", "-covermode=count", "-debug"}
+	args := []string{"-project=github.com/go-playground/overalls/test-files", "-covermode=count", "-debug"}
 
 	cmd := exec.Command("overalls", args...)
 	err := cmd.Run()
 	Equal(t, err, nil)
 
-	fileBytes, err := ioutil.ReadFile(srcPath + "github.com/bluesuncorp/overalls/test-files/overalls.coverprofile")
+	fileBytes, err := ioutil.ReadFile(srcPath + "github.com/go-playground/overalls/test-files/overalls.coverprofile")
 	Equal(t, err, nil)
 
 	final := string(fileBytes)

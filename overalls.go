@@ -46,7 +46,7 @@ OPTIONAL
   -concurrency
     Limit the number of packages being processed at one time.
     example: -concurrency=5
-    default: 1000
+    default: unlimited
 `
 )
 
@@ -66,6 +66,7 @@ var (
 	helpFlag        bool
 	debugFlag       bool
 	concurrencyFlag int
+	isLimited       bool
 	emptyStruct     struct{}
 	ignores         = map[string]struct{}{}
 )
@@ -80,7 +81,7 @@ func parseFlags() {
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
 	flag.BoolVar(&debugFlag, "debug", false, "-debug [true|false]")
-	flag.IntVar(&concurrencyFlag, "concurrency", 1000, "-concurrency [int]: number of packages to process concurrently")
+	flag.IntVar(&concurrencyFlag, "concurrency", -1, "-concurrency [int]: number of packages to process concurrently")
 	flag.BoolVar(&helpFlag, "help", false, "-help")
 	flag.Parse()
 
@@ -122,6 +123,8 @@ func parseFlags() {
 	for _, v := range arr {
 		ignores[v] = emptyStruct
 	}
+
+	isLimited = concurrencyFlag != -1
 }
 
 func main() {
@@ -151,7 +154,7 @@ func main() {
 	testFiles()
 }
 
-func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte, semaphore chan bool) {
+func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte, semaphore chan struct{}) {
 
 	defer wg.Done()
 
@@ -161,6 +164,7 @@ func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte,
 
 	cmd := exec.Command("go", "test", "-covermode="+coverFlag, "-coverprofile=profile.coverprofile", "-outputdir="+fullPath+"/", relPath)
 	if err := cmd.Run(); err != nil {
+		fmt.Println(coverFlag, fullPath, relPath)
 		fmt.Println("ERROR:", err)
 		os.Exit(1)
 	}
@@ -172,12 +176,20 @@ func processDIR(wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte,
 	}
 
 	out <- b
-	<-semaphore
+
+	if isLimited {
+		<-semaphore
+	}
 }
 
 func testFiles() {
 
-	semaphore := make(chan bool, concurrencyFlag)
+	var semaphore chan struct{}
+
+	if isLimited {
+		semaphore = make(chan struct{}, concurrencyFlag)
+	}
+
 	out := make(chan []byte)
 	wg := &sync.WaitGroup{}
 
@@ -209,7 +221,9 @@ func testFiles() {
 			return nil
 		}
 
-		semaphore <- true
+		if isLimited {
+			semaphore <- struct{}{}
+		}
 		wg.Add(1)
 		go processDIR(wg, path, rel, out, semaphore)
 
@@ -231,7 +245,10 @@ func testFiles() {
 
 	wg.Wait()
 	close(out)
-	close(semaphore)
+
+	if isLimited {
+		close(semaphore)
+	}
 
 	final := buff.String()
 	final = modeRegex.ReplaceAllString(final, "")
