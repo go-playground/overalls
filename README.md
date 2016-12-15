@@ -1,22 +1,22 @@
 Package overalls
 ================
 
-[![Build Status](https://semaphoreci.com/api/v1/projects/a0634385-0174-48b1-9190-fb2645fdb9a2/501046/badge.svg)](https://semaphoreci.com/joeybloggs/overalls)
-[![GoDoc](https://godoc.org/github.com/bluesuncorp/overalls?status.svg)](https://godoc.org/github.com/bluesuncorp/overalls)
+[![Build Status](https://semaphoreci.com/api/v1/projects/a0634385-0174-48b1-9190-fb2645fdb9a2/501047/badge.svg)](https://semaphoreci.com/joeybloggs/overalls)
+[![GoDoc](https://godoc.org/github.com/go-playground/overalls?status.svg)](https://godoc.org/github.com/go-playground/overalls)
 
 Package overalls takes multi-package go projects, runs test coverage tests on all packages in each directory and finally concatenates into a single file for tools like goveralls.
 
 Usage and documentation
 ------
 ##### Example
-	overalls -project=github.com/bluesuncorp/overalls -covermode=count -debug
-	
+	overalls -project=github.com/go-playground/overalls -covermode=count -debug
+
 ##### then with other tools such as goveralls
 	goveralls -coverprofile=overalls.coverprofile -service semaphore -repotoken $COVERALLS_TOKEN
 
 $ overalls -help
 
-usage: overalls -project=[path] -covermode[mode] OPTIONS
+usage: overalls -project=[path] -covermode[mode] OPTIONS -- TESTOPTIONS
 
 overalls recursively traverses your projects directory structure
 running 'go test -covermode=count -coverprofile=profile.coverprofile'
@@ -26,7 +26,7 @@ coverprofile in your root directory named 'overalls.coverprofile'
 OPTIONS
   -project
 	Your project path relative to the '$GOPATH/src' directory
-	example: -project=github.com/bluesuncorp/overalls
+	example: -project=github.com/go-playground/overalls
 
   -covermode
     Mode to run when testing files.
@@ -46,13 +46,26 @@ OPTIONAL
 
   -concurrency
     Limit the number of packages being processed at one time.
+    The minimum value must be 2 or more when set.
     example: -concurrency=5
-    default: 1000
+    default: unlimited
     
+TESTOPTIONS
+
+  Any flags after `--` will be passed as-is to `go test`.
+  For example:
+
+```bash
+overalls -project=$PROJECT -debug -- -race -v
+```
+
+Will call `go test -race -v` under the hood in addition to the `-coverprofile`
+commands.
+
 How to Contribute
 ------
 
-There will always be a development branch. In order to contribute, 
+There will always be a development branch. In order to contribute,
 please make your pull requests against that branch.
 
 If the changes being proposed or requested are breaking changes, please create an issue.
