@@ -9,7 +9,7 @@ Package overalls takes multi-package go projects, runs test coverage tests on al
 Usage and documentation
 ------
 ##### Example
-	overalls -project=github.com/bluesuncorp/overalls -covermode=count -debug
+	overalls -project=github.com/go-playground/overalls -covermode=count -debug
 
 ##### then with other tools such as goveralls
 	goveralls -coverprofile=overalls.coverprofile -service semaphore -repotoken $COVERALLS_TOKEN
@@ -26,7 +26,7 @@ coverprofile in your root directory named 'overalls.coverprofile'
 OPTIONS
   -project
 	Your project path relative to the '$GOPATH/src' directory
-	example: -project=github.com/bluesuncorp/overalls
+	example: -project=github.com/go-playground/overalls
 
   -covermode
     Mode to run when testing files.
@@ -44,6 +44,12 @@ OPTIONAL
     example: -debug
     default:false
 
+  -concurrency
+    Limit the number of packages being processed at one time.
+    The minimum value must be 2 or more when set.
+    example: -concurrency=5
+    default: unlimited
+    
 TESTOPTIONS
 
   Any flags after `--` will be passed as-is to `go test`.

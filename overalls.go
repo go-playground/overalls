@@ -45,6 +45,12 @@ OPTIONAL
     A flag indicating whether to print debug messages.
     example: -debug
     default:false
+
+  -concurrency
+    Limit the number of packages being processed at one time.
+    The minimum value must be 2 or more when set.
+    example: -concurrency=5
+    default: unlimited
 `
 )
 
@@ -55,17 +61,19 @@ const (
 )
 
 var (
-	modeRegex   = regexp.MustCompile("mode: [a-z]+\n")
-	gopath      = filepath.Clean(os.Getenv("GOPATH"))
-	srcPath     = gopath + "/src/"
-	projectPath string
-	ignoreFlag  string
-	projectFlag string
-	coverFlag   string
-	helpFlag    bool
-	debugFlag   bool
-	emptyStruct struct{}
-	ignores     = map[string]struct{}{}
+	modeRegex       = regexp.MustCompile("mode: [a-z]+\n")
+	gopath          = filepath.Clean(os.Getenv("GOPATH"))
+	srcPath         = gopath + "/src/"
+	projectPath     string
+	ignoreFlag      string
+	projectFlag     string
+	coverFlag       string
+	helpFlag        bool
+	debugFlag       bool
+	concurrencyFlag int
+	isLimited       bool
+	emptyStruct     struct{}
+	ignores         = map[string]struct{}{}
 )
 
 func help() {
@@ -76,6 +84,7 @@ func init() {
 	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
+	flag.IntVar(&concurrencyFlag, "concurrency", -1, "-concurrency [int]: number of packages to process concurrently, The minimum value must be 2 or more when set.")
 	flag.BoolVar(&debugFlag, "debug", false, "-debug [true|false]")
 	flag.BoolVar(&helpFlag, "help", false, "-help")
 }
@@ -121,6 +130,13 @@ func parseFlags() {
 	for _, v := range arr {
 		ignores[v] = emptyStruct
 	}
+
+	isLimited = concurrencyFlag != -1
+
+	if isLimited && concurrencyFlag < 2 {
+		fmt.Printf("\n**invalid concurrency value '%d', value must be at least 2\n", concurrencyFlag)
+		os.Exit(1)
+	}
 }
 
 func main() {
@@ -165,7 +181,7 @@ func scanOutput(r io.ReadCloser, fn func(...interface{})) {
 	}
 }
 
-func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte) {
+func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte, semaphore chan struct{}) {
 	defer wg.Done()
 
 	// 1 for "test", 4 for coermode, coverprofile, outputdir, relpath
@@ -201,9 +217,20 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	}
 
 	out <- b
+
+	if isLimited {
+		<-semaphore
+	}
 }
 
 func testFiles(logger *log.Logger) {
+
+	var semaphore chan struct{}
+
+	if isLimited {
+		semaphore = make(chan struct{}, concurrencyFlag)
+	}
+
 	out := make(chan []byte)
 	wg := &sync.WaitGroup{}
 
@@ -224,19 +251,23 @@ func testFiles(logger *log.Logger) {
 		if files, err := filepath.Glob(rel + "/*_test.go"); len(files) == 0 || err != nil {
 
 			if err != nil {
-				logger.Printf("Error checking for test files")
-				os.Exit(1)
+				logger.Fatal("Error checking for test files")
 			}
 
 			if debugFlag {
-				logger.Printf("No Go Test files in DIR:", rel, "skipping")
+				logger.Println("No Go Test files in DIR:", rel, "skipping")
 			}
 
 			return nil
 		}
 
 		wg.Add(1)
-		go processDIR(logger, wg, path, rel, out)
+
+		if isLimited {
+			semaphore <- struct{}{}
+		}
+
+		go processDIR(logger, wg, path, rel, out, semaphore)
 
 		return nil
 	}
@@ -248,6 +279,10 @@ func testFiles(logger *log.Logger) {
 	go func() {
 		wg.Wait()
 		close(out)
+
+		if isLimited {
+			close(semaphore)
+		}
 	}()
 
 	buff := bytes.NewBufferString("")

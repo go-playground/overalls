@@ -30,7 +30,6 @@ func TestOveralls_Default(t *testing.T) {
 		NotEqual(t, strings.Index(final, "test-files/good2/main.go"), -1)
 		MatchRegex(t, string(output), "-covermode=count")
 		MatchRegex(t, string(output), "-outputdir=.*/go-playground/overalls/test-files/good")
-
 		MatchRegex(t, string(output), "go test -covermode=count")
 	})
 }
