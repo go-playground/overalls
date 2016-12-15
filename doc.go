@@ -32,5 +32,11 @@ tools like goveralls.
 	    A flag indicating whether to print debug messages.
 	    example: -debug
 	    default:false
+
+	  -concurrency
+	    Limit the number of packages being processed at one time.
+	    The minimum value must be 2 or more when set.
+	    example: -concurrency=5
+	    default: unlimited
 */
 package main
