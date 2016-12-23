@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"go/build"
 	"io"
 	"io/ioutil"
 	"log"
@@ -62,8 +63,7 @@ const (
 
 var (
 	modeRegex       = regexp.MustCompile("mode: [a-z]+\n")
-	gopath          = filepath.Clean(os.Getenv("GOPATH"))
-	srcPath         = gopath + "/src/"
+	srcPath         string
 	projectPath     string
 	ignoreFlag      string
 	projectFlag     string
@@ -98,12 +98,7 @@ func parseFlags() {
 	}
 
 	if debugFlag {
-		fmt.Println("GOPATH:", gopath)
-	}
-
-	if len(gopath) == 0 || gopath == "." {
-		fmt.Printf("\n**invalid GOPATH '%s'\n", gopath)
-		os.Exit(1)
+		fmt.Println("GOPATH:", os.Getenv("GOPATH"))
 	}
 
 	fmt.Println("|", projectFlag)
@@ -118,6 +113,13 @@ func parseFlags() {
 		help()
 		os.Exit(1)
 	}
+
+	pkg, err := build.Default.Import(projectFlag, "", build.FindOnly)
+	if err != nil {
+		fmt.Printf("\n**could not find project path '%s' in GOPATH '%s'\n", projectFlag, os.Getenv("GOPATH"))
+		os.Exit(1)
+	}
+	srcPath = pkg.SrcRoot
 
 	switch coverFlag {
 	case "set", "count", "atomic":
@@ -150,7 +152,7 @@ func runMain(logger *log.Logger) {
 	var err error
 	var wd string
 
-	projectPath = srcPath + projectFlag + "/"
+	projectPath = filepath.Join(srcPath, projectFlag)
 
 	if err = os.Chdir(projectPath); err != nil {
 		logger.Printf("\n**invalid project path '%s'\n%s\n", projectFlag, err)
@@ -240,7 +242,10 @@ func testFiles(logger *log.Logger) {
 			return nil
 		}
 
-		rel := strings.Replace(path, projectPath, "", 1)
+		rel, err := filepath.Rel(projectPath, path)
+		if err != nil {
+			logger.Fatalf("Could not make path '%s' relative to project path '%s'", path, projectPath)
+		}
 
 		if _, ignore := ignores[rel]; ignore {
 			return filepath.SkipDir
