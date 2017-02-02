@@ -15,6 +15,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/yookoala/realpath"
 )
 
 const (
@@ -225,6 +227,56 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	}
 }
 
+// walk is like filepath.Walk, but it follows symlinks and only calls walkFunc on directories.
+func walkDirectories(path string, walkFunc func(path string, info os.FileInfo) error) error {
+	seen := make(map[string]bool)
+
+	var walkHelper func(path string) error
+	walkHelper = func(path string) error {
+		qualifiedPath, err := realpath.Realpath(path)
+		if err != nil {
+			return err
+		}
+
+		// Prevent circular links.
+		if seen[qualifiedPath] {
+			return nil
+		}
+		seen[qualifiedPath] = true
+
+		// Skip anything that isn't a directory.
+		file, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+		if !file.IsDir() {
+			return nil
+		}
+
+		err = walkFunc(path, file)
+		if err != nil {
+			if err == filepath.SkipDir {
+				return nil
+			}
+			return err
+		}
+
+		files, err := ioutil.ReadDir(path)
+		if err != nil {
+			return err
+		}
+
+		for _, file := range files {
+			err = walkHelper(filepath.Join(path, file.Name()))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return walkHelper(path)
+}
+
 func testFiles(logger *log.Logger) {
 
 	var semaphore chan struct{}
@@ -236,12 +288,7 @@ func testFiles(logger *log.Logger) {
 	out := make(chan []byte)
 	wg := &sync.WaitGroup{}
 
-	walker := func(path string, info os.FileInfo, err error) error {
-
-		if !info.IsDir() {
-			return nil
-		}
-
+	walker := func(path string, info os.FileInfo) error {
 		rel, err := filepath.Rel(projectPath, path)
 		if err != nil {
 			logger.Fatalf("Could not make path '%s' relative to project path '%s'", path, projectPath)
@@ -277,7 +324,7 @@ func testFiles(logger *log.Logger) {
 		return nil
 	}
 
-	if err := filepath.Walk(projectPath, walker); err != nil {
+	if err := walkDirectories(projectPath, walker); err != nil {
 		logger.Fatalf("\n**could not walk project path '%s'\n%s\n", projectPath, err)
 	}
 
