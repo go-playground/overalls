@@ -27,10 +27,15 @@ func TestOveralls_Default(t *testing.T) {
 	withTestingOveralls(t, func(output []byte, fileBytes []byte) {
 		final := string(fileBytes)
 		NotEqual(t, strings.Index(final, "main.go"), -1)
+		NotEqual(t, strings.Index(final, "test-files/circular/lib/main.go"), -1)
 		NotEqual(t, strings.Index(final, "test-files/good/main.go"), -1)
 		NotEqual(t, strings.Index(final, "test-files/good2/main.go"), -1)
+		NotEqual(t, strings.Index(final, "test-files/symlink-test-files/main.go"), -1)
 		MatchRegex(t, string(output), "-covermode=count")
+		MatchRegex(t, string(output), "-outputdir=.*/go-playground/overalls/test-files/circular/lib")
 		MatchRegex(t, string(output), "-outputdir=.*/go-playground/overalls/test-files/good")
+		MatchRegex(t, string(output), "-outputdir=.*/go-playground/overalls/test-files/good2")
+		MatchRegex(t, string(output), "-outputdir=.*/go-playground/overalls/test-files/symlink-test-files")
 		MatchRegex(t, string(output), "go test -covermode=count")
 	})
 }
