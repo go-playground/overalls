@@ -39,6 +39,12 @@ OPTIONS
 
 OPTIONAL
 
+  -go-binary
+    An alternative 'go' binary to run the tests, for example to use 'richgo' for
+		more human-friendly output.
+    example: -go-binary=richgo
+    default: 'go'
+
   -ignore
     A comma separated list of directory names to ignore, relative to project path.
     example: -ignore=[.git,.hiddentdir...]
@@ -67,6 +73,7 @@ var (
 	modeRegex       = regexp.MustCompile("mode: [a-z]+\n")
 	srcPath         string
 	projectPath     string
+	goBinary        string
 	ignoreFlag      string
 	projectFlag     string
 	coverFlag       string
@@ -83,6 +90,7 @@ func help() {
 }
 
 func init() {
+	flag.StringVar(&goBinary, "go-binary", "go", "Use an alternative test runner such as 'richgo'")
 	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
@@ -195,7 +203,7 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	args = append(args, "-covermode="+coverFlag, "-coverprofile="+pkgFilename, "-outputdir="+fullPath+"/", relPath)
 	fmt.Printf("Test args: %+v\n", args)
 
-	cmd := exec.Command("go", args...)
+	cmd := exec.Command(goBinary, args...)
 	if debugFlag {
 		logger.Println("Processing:", strings.Join(cmd.Args, " "))
 	}
