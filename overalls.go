@@ -196,7 +196,7 @@ func scanOutput(r io.ReadCloser, fn func(...interface{})) {
 func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte, semaphore chan struct{}) {
 	defer wg.Done()
 
-	// 1 for "test", 4 for coermode, coverprofile, outputdir, relpath
+	// 1 for "test", 4 for covermode, coverprofile, outputdir, relpath
 	args := make([]string, 1, 1+len(flag.Args())+4)
 	args[0] = "test"
 	args = append(args, flag.Args()...)
@@ -211,12 +211,14 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	if err != nil {
 		logger.Fatal("Unable to get process stdout")
 	}
+
 	go scanOutput(stdout, logger.Print)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		logger.Fatal("Unable to get process stderr")
 	}
+
 	go scanOutput(stderr, logger.Print)
 
 	if err := cmd.Run(); err != nil {
