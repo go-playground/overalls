@@ -1,7 +1,7 @@
 Package overalls
 ================
 
-[![Build Status](https://semaphoreci.com/api/v1/projects/a0634385-0174-48b1-9190-fb2645fdb9a2/501047/badge.svg)](https://semaphoreci.com/joeybloggs/overalls)
+[![Build Status](https://travis-ci.org/go-playground/overalls.svg?branch=master)](https://travis-ci.org/go-playground/overalls)
 [![GoDoc](https://godoc.org/github.com/go-playground/overalls?status.svg)](https://godoc.org/github.com/go-playground/overalls)
 
 Package overalls takes multi-package go projects, runs test coverage tests on all packages in each directory and finally concatenates into a single file for tools like goveralls.
@@ -14,6 +14,7 @@ Usage and documentation
 ##### then with other tools such as goveralls
 	goveralls -coverprofile=overalls.coverprofile -service semaphore -repotoken $COVERALLS_TOKEN
 
+```shell
 $ overalls -help
 
 usage: overalls -project=[path] -covermode[mode] OPTIONS -- TESTOPTIONS
@@ -49,7 +50,8 @@ OPTIONAL
     The minimum value must be 2 or more when set.
     example: -concurrency=5
     default: unlimited
-    
+```
+
 TESTOPTIONS
 
   Any flags after `--` will be passed as-is to `go test`.
@@ -65,8 +67,7 @@ commands.
 How to Contribute
 ------
 
-There will always be a development branch. In order to contribute,
-please make your pull requests against that branch.
+Make a pull request.
 
 If the changes being proposed or requested are breaking changes, please create an issue.
 
