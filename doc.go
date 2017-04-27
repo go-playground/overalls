@@ -15,7 +15,7 @@ tools like goveralls.
 	OPTIONS
 	  -project
 		Your project path relative to the '$GOPATH/src' directory
-		example: -project=github.com/bluesuncorp/overalls
+		example: -project=github.com/go-playground/overalls
 
 	  -covermode
 	    Mode to run when testing files.
