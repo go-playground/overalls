@@ -1,1 +1,0 @@
-../test-files/good/main_test.go

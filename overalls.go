@@ -31,7 +31,7 @@ coverprofile in your root directory named 'overalls.coverprofile'
 OPTIONS
   -project
 	Your project path relative to the '$GOPATH/src' directory
-	example: -project=github.com/bluesuncorp/overalls
+	example: -project=github.com/go-playground/overalls
 
   -covermode
     Mode to run when testing files.
@@ -83,6 +83,7 @@ var (
 	isLimited       bool
 	emptyStruct     struct{}
 	ignores         = map[string]struct{}{}
+	flagArgs        []string
 )
 
 func help() {
@@ -99,7 +100,8 @@ func init() {
 	flag.BoolVar(&helpFlag, "help", false, "-help")
 }
 
-func parseFlags() {
+func parseFlags(logger *log.Logger) {
+
 	flag.Parse()
 
 	if helpFlag {
@@ -131,8 +133,17 @@ func parseFlags() {
 	}
 	srcPath = pkg.SrcRoot
 
+	flagArgs = flag.Args()
+
 	switch coverFlag {
-	case "set", "count", "atomic":
+	case "set", "atomic":
+	case "count":
+		for _, flg := range flagArgs {
+			if flg == "-race" {
+				logger.Println("\n*****\n** WARNING: some common patterns in parallel code can trigger race conditions when using coverprofile=count and the -race flag; in which case coverprofile=atomic should be used.\n*****")
+				break
+			}
+		}
 	default:
 		fmt.Printf("\n**invalid covermode '%s'\n", coverFlag)
 		os.Exit(1)
@@ -157,7 +168,7 @@ func main() {
 }
 
 func runMain(logger *log.Logger) {
-	parseFlags()
+	parseFlags(logger)
 
 	var err error
 	var wd string
@@ -196,10 +207,10 @@ func scanOutput(r io.ReadCloser, fn func(...interface{})) {
 func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte, semaphore chan struct{}) {
 	defer wg.Done()
 
-	// 1 for "test", 4 for coermode, coverprofile, outputdir, relpath
-	args := make([]string, 1, 1+len(flag.Args())+4)
+	// 1 for "test", 4 for covermode, coverprofile, outputdir, relpath
+	args := make([]string, 1, 1+len(flagArgs)+4)
 	args[0] = "test"
-	args = append(args, flag.Args()...)
+	args = append(args, flagArgs...)
 	args = append(args, "-covermode="+coverFlag, "-coverprofile="+pkgFilename, "-outputdir="+fullPath+"/", relPath)
 	fmt.Printf("Test args: %+v\n", args)
 
@@ -211,12 +222,14 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	if err != nil {
 		logger.Fatal("Unable to get process stdout")
 	}
+
 	go scanOutput(stdout, logger.Print)
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		logger.Fatal("Unable to get process stderr")
 	}
+
 	go scanOutput(stderr, logger.Print)
 
 	if err := cmd.Run(); err != nil {
