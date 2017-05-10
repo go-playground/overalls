@@ -156,8 +156,8 @@ func parseFlags(logger *log.Logger) {
 
 	isLimited = concurrencyFlag != -1
 
-	if isLimited && concurrencyFlag < 2 {
-		fmt.Printf("\n**invalid concurrency value '%d', value must be at least 2\n", concurrencyFlag)
+	if isLimited && concurrencyFlag < 1 {
+		fmt.Printf("\n**invalid concurrency value '%d', value must be at least 1\n", concurrencyFlag)
 		os.Exit(1)
 	}
 }
@@ -206,6 +206,10 @@ func scanOutput(r io.ReadCloser, fn func(...interface{})) {
 
 func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string, out chan<- []byte, semaphore chan struct{}) {
 	defer wg.Done()
+
+	if isLimited {
+		semaphore <- struct{}{}
+	}
 
 	// 1 for "test", 4 for covermode, coverprofile, outputdir, relpath
 	args := make([]string, 1, 1+len(flagArgs)+4)
@@ -335,10 +339,6 @@ func testFiles(logger *log.Logger) {
 		}
 
 		wg.Add(1)
-
-		if isLimited {
-			semaphore <- struct{}{}
-		}
 
 		go processDIR(logger, wg, path, rel, out, semaphore)
 
