@@ -214,6 +214,14 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	// 1 for "test", 4 for covermode, coverprofile, outputdir, relpath
 	args := make([]string, 1, 1+len(flagArgs)+4)
 	args[0] = "test"
+	// To split '-- <go test arguments> -args <program arguments>'
+	for i, arg := range flagArgs {
+		if arg == "-args" {
+			args = append(args, flagArgs[:i]...)
+			flagArgs = flagArgs[i:]
+			break
+		}
+	}
 	args = append(args, "-covermode="+coverFlag, "-coverprofile="+pkgFilename, "-outputdir="+fullPath+"/", relPath)
 	args = append(args, flagArgs...)
 	fmt.Printf("Test args: %+v\n", args)
