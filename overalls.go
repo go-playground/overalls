@@ -230,21 +230,22 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	if debugFlag {
 		logger.Println("Processing:", strings.Join(cmd.Args, " "))
 	}
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logger.Fatal("Unable to get process stdout")
 	}
-
-	go scanOutput(stdout, logger.Print)
-
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		logger.Fatal("Unable to get process stderr")
 	}
 
-	go scanOutput(stderr, logger.Print)
-
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Start(); err != nil {
+		logger.Fatal("ERROR:", err)
+	}
+	scanOutput(stdout, logger.Print)
+	scanOutput(stderr, logger.Print)
+	if err := cmd.Wait(); err != nil {
 		logger.Fatal("ERROR:", err)
 	}
 
