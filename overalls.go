@@ -60,6 +60,9 @@ OPTIONAL
     The minimum value must be 2 or more when set.
     example: -concurrency=5
     default: unlimited
+
+  -outfile
+   In addition to stdout, write all output to this file.
 `
 )
 
@@ -77,6 +80,7 @@ var (
 	ignoreFlag      string
 	projectFlag     string
 	coverFlag       string
+	outPath         string
 	helpFlag        bool
 	debugFlag       bool
 	concurrencyFlag int
@@ -84,6 +88,7 @@ var (
 	emptyStruct     struct{}
 	ignores         = map[string]struct{}{}
 	flagArgs        []string
+	outputFunc      func(...interface{})
 )
 
 func help() {
@@ -95,6 +100,7 @@ func init() {
 	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
+	flag.StringVar(&outPath, "outfile", "", "write output to this file as well as stdout")
 	flag.IntVar(&concurrencyFlag, "concurrency", -1, "-concurrency [int]: number of packages to process concurrently, The minimum value must be 2 or more when set.")
 	flag.BoolVar(&debugFlag, "debug", false, "-debug [true|false]")
 	flag.BoolVar(&helpFlag, "help", false, "-help")
@@ -159,6 +165,24 @@ func parseFlags(logger *log.Logger) {
 	if isLimited && concurrencyFlag < 1 {
 		fmt.Printf("\n**invalid concurrency value '%d', value must be at least 1\n", concurrencyFlag)
 		os.Exit(1)
+	}
+
+	outputFunc = createLogfunc(logger)
+}
+
+func createLogfunc(logger *log.Logger) func(...interface{}) {
+	if outPath == "" {
+		return logger.Print
+	}
+	fd, err := os.Create(outPath)
+	if err != nil {
+		logger.Printf("unable to open %s for writing", outPath)
+		return logger.Print
+	}
+
+	return func(args ...interface{}) {
+		logger.Print(args...)
+		fmt.Fprintln(fd, args...)
 	}
 }
 
@@ -243,8 +267,10 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 	if err := cmd.Start(); err != nil {
 		logger.Fatal("ERROR:", err)
 	}
-	scanOutput(stdout, logger.Print)
-	scanOutput(stderr, logger.Print)
+
+	scanOutput(stdout, outputFunc)
+	scanOutput(stderr, outputFunc)
+
 	if err := cmd.Wait(); err != nil {
 		logger.Fatal("ERROR:", err)
 	}
