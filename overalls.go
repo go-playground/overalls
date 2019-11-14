@@ -30,7 +30,7 @@ coverprofile in your root directory named 'overalls.coverprofile'
 
 OPTIONS
   -project
-	Your project path relative to the '$GOPATH/src' directory
+	Your project path as an absolute path or relative to the '$GOPATH/src' directory
 	example: -project=github.com/go-playground/overalls
 
   -covermode
@@ -97,7 +97,7 @@ func help() {
 
 func init() {
 	flag.StringVar(&goBinary, "go-binary", "go", "Use an alternative test runner such as 'richgo'")
-	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
+	flag.StringVar(&projectFlag, "project", "", "-project [path]: as an absolute path or relative to the '$GOPATH/src' directory")
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
 	flag.StringVar(&outPath, "outfile", "", "write output to this file as well as stdout")
@@ -132,12 +132,17 @@ func parseFlags(logger *log.Logger) {
 		os.Exit(1)
 	}
 
-	pkg, err := build.Default.Import(projectFlag, "", build.FindOnly)
-	if err != nil {
-		fmt.Printf("\n**could not find project path '%s' in GOPATH '%s'\n", projectFlag, os.Getenv("GOPATH"))
-		os.Exit(1)
+	if filepath.IsAbs(projectFlag) {
+		srcPath = filepath.Dir(projectFlag)
+		projectFlag = filepath.Base(projectFlag)
+	} else {
+		pkg, err := build.Default.Import(projectFlag, "", build.FindOnly)
+		if err != nil {
+			fmt.Printf("\n**could not find project path '%s' in GOPATH '%s'\n", projectFlag, os.Getenv("GOPATH"))
+			os.Exit(1)
+		}
+		srcPath = pkg.SrcRoot
 	}
-	srcPath = pkg.SrcRoot
 
 	flagArgs = flag.Args()
 

@@ -38,7 +38,7 @@ coverprofile in your root directory named 'overalls.coverprofile'
 
 OPTIONS
   -project
-	Your project path relative to the '$GOPATH/src' directory
+	Your project path as an absolute path or relative to the '$GOPATH/src' directory
 	example: -project=github.com/go-playground/overalls
 
   -covermode
