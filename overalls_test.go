@@ -61,7 +61,7 @@ func withTestingOveralls(t *testing.T, fn func(output []byte, coverage []byte), 
 	out := &buffer{}
 	runMain(log.New(out, "", 0))
 
-	fileBytes, err := ioutil.ReadFile(filepath.Join(srcPath, "github.com/go-playground/overalls/testdata/overalls.coverprofile"))
+	fileBytes, err := ioutil.ReadFile(filepath.Join(projectPath, "overalls.coverprofile"))
 
 	// Ensure no error reading file
 	Equal(t, err, nil)

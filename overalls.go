@@ -30,7 +30,7 @@ coverprofile in your root directory named 'overalls.coverprofile'
 
 OPTIONS
   -project
-	Your project path relative to the '$GOPATH/src' directory
+	The import path of your project.
 	example: -project=github.com/go-playground/overalls
 
   -covermode
@@ -74,7 +74,6 @@ const (
 
 var (
 	modeRegex       = regexp.MustCompile("mode: [a-z]+\n")
-	srcPath         string
 	projectPath     string
 	goBinary        string
 	ignoreFlag      string
@@ -97,7 +96,7 @@ func help() {
 
 func init() {
 	flag.StringVar(&goBinary, "go-binary", "go", "Use an alternative test runner such as 'richgo'")
-	flag.StringVar(&projectFlag, "project", "", "-project [path]: relative to the '$GOPATH/src' directory")
+	flag.StringVar(&projectFlag, "project", "", "-project [path]: import path of the project")
 	flag.StringVar(&coverFlag, "covermode", "count", "Mode to run when testing files")
 	flag.StringVar(&ignoreFlag, "ignore", defaultIgnores, "-ignore [dir1,dir2...]: comma separated list of directory names to ignore")
 	flag.StringVar(&outPath, "outfile", "", "write output to this file as well as stdout")
@@ -132,12 +131,12 @@ func parseFlags(logger *log.Logger) {
 		os.Exit(1)
 	}
 
-	pkg, err := build.Default.Import(projectFlag, "", build.FindOnly)
+	pkg, err := build.Default.Import(projectFlag, ".", build.FindOnly)
 	if err != nil {
 		fmt.Printf("\n**could not find project path %q: %s\n", projectFlag, err)
 		os.Exit(1)
 	}
-	srcPath = pkg.SrcRoot
+	projectPath = pkg.Dir
 
 	flagArgs = flag.Args()
 
@@ -196,8 +195,6 @@ func runMain(logger *log.Logger) {
 
 	var err error
 	var wd string
-
-	projectPath = filepath.Join(srcPath, projectFlag)
 
 	if err = os.Chdir(projectPath); err != nil {
 		logger.Printf("\n**invalid project path '%s'\n%s\n", projectFlag, err)
