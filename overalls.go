@@ -251,7 +251,7 @@ func processDIR(logger *log.Logger, wg *sync.WaitGroup, fullPath, relPath string
 			break
 		}
 	}
-	args = append(args, "-covermode="+coverFlag, "-coverprofile="+pkgFilename, "-outputdir="+fullPath+"/", relPath)
+	args = append(args, "-covermode="+coverFlag, "-coverprofile="+pkgFilename, "-outputdir="+fullPath+"/", relPath+"/...")
 	args = append(args, flagArgs...)
 	fmt.Printf("Test args: %+v\n", args)
 
