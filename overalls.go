@@ -138,7 +138,7 @@ func parseFlags(logger *log.Logger) {
 	} else {
 		pkg, err := build.Default.Import(projectFlag, "", build.FindOnly)
 		if err != nil {
-			fmt.Printf("\n**could not find project path '%s' in GOPATH '%s'\n", projectFlag, os.Getenv("GOPATH"))
+			fmt.Printf("\n**could not find project path %q: %s\n", projectFlag, err)
 			os.Exit(1)
 		}
 		srcPath = pkg.SrcRoot
